@@ -22,7 +22,76 @@ IPAddress SUBNET(255,255,255,0);
 
 WebServer wifiserver(80);
 
-char* ble_mode = "off";
+#include <Arduino.h>
+#include "NimBLEDevice.h"
+
+uint8_t OFF[] = {0xCC, 0x24, 0x33};
+uint8_t ON[] =  {0XCC, 0x23, 0x33};
+
+// SINGLE COLOR                R     G     B
+uint8_t SOLID_RED[] =   {0x56, 0xFF, 0x00, 0x00, 0x00, 0xF0, 0xAA};
+uint8_t SOLID_GREEN[] = {0x56, 0x00, 0xFF, 0x00, 0x00, 0xF0, 0xAA};
+uint8_t DIM_GREEN[] =   {0x56, 0x00, 0x01, 0x00, 0x00, 0xF0, 0xAA};
+
+// WHITES intensity(high bright)                 INTENSITY
+uint8_t SOLID_WHITE[] = {0x56, 0x00, 0x00, 0x00, 0x7F, 0x0F, 0xAA};
+
+// BUILT IN md(0x25-38), sp (low fast) MODE  SPEED
+uint8_t PURPLE_BUILT_IN[] =     {0xBB, 0x2B, 0x01, 0x44};
+uint8_t DISCO[] =             {0xBB, 0x38, 0x10, 0x44};
+
+// String serverUUID = "a4:c1:38:59:a1:d9";
+static BLEUUID serviceUUID("FFD5");
+static BLEUUID    charUUID("FFD9");
+
+String ble_mode = "off";
+
+static boolean doConnect = false;
+static boolean connected = false;
+static boolean doScan = false;
+static BLERemoteCharacteristic* pRemoteCharacteristic;
+static BLEAdvertisedDevice* myDevice;
+
+/**
+ * 
+ * WIFI Handlers
+ * 
+*/
+
+String SendHTML(String ble_mode) {
+  String ptr = "<!DOCTYPE html> <html>\n";
+  ptr +="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
+  ptr +="<title>LED Control</title>\n";
+  ptr +="<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
+  ptr +="body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;} h3 {color: #444444;margin-bottom: 50px;}\n";
+  ptr +=".button {display: block;width: 80px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n";
+  ptr +=".button-on {background-color: #3498db;}\n";
+  ptr +=".button-on:active {background-color: #2980b9;}\n";
+  ptr +=".button-off {background-color: #34495e;}\n";
+  ptr +=".button-off:active {background-color: #2c3e50;}\n";
+  ptr +="p {font-size: 14px;color: #888;margin-bottom: 10px;}\n";
+  ptr +="</style>\n";
+  ptr +="</head>\n";
+  ptr +="<body>\n";
+  ptr +="<h1>ESP32 Web Server</h1>\n";
+  ptr +="<h3>Using Access Point(AP) Mode</h3>\n";
+  if (ble_mode == "off") {
+    ptr +="<p>BLE Status: OFF</p><a class=\"button button-on\" href=\"/off\">OFF</a>\n";
+    ptr +="<p>OFF</p><a class=\"button button-off\" href=\"/disco\">DISCO</a>\n";
+    ptr +="<p>OFF</p><a class=\"button button-off\" href=\"/solid_red\">Solid Red</a>\n";
+  } else if (ble_mode == "disco") {
+    ptr +="<p>BLE Status: OFF</p><a class=\"button button-off\" href=\"/off\">OFF</a>\n";
+    ptr +="<p>OFF</p><a class=\"button button-on\" href=\"/disco\">DISCO</a>\n";
+    ptr +="<p>OFF</p><a class=\"button button-off\" href=\"/solid_red\">Solid Red</a>\n";
+  } else if (ble_mode == "solid_red") {
+    ptr +="<p>BLE Status: OFF</p><a class=\"button button-off\" href=\"/off\">OFF</a>\n";
+    ptr +="<p>OFF</p><a class=\"button button-off\" href=\"/disco\">DISCO</a>\n";
+    ptr +="<p>OFF</p><a class=\"button button-on\" href=\"/solid_red\">Solid Red</a>\n";
+  }
+  ptr +="</body>\n";
+  ptr +="</html>\n";
+  return ptr;
+}
 
 void handle_OnConnect() {
   Serial.println("handle_OnConnect");
@@ -60,59 +129,11 @@ void handle_404() {
   wifiserver.send(404, "text/plain", "Not found");
 }
 
-String SendHTML(String ble_mode) {
-  String ptr = "<!DOCTYPE html> <html>\n";
-  ptr +="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
-  ptr +="<title>LED Control</title>\n";
-  ptr +="<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
-  ptr +="body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;} h3 {color: #444444;margin-bottom: 50px;}\n";
-  ptr +=".button {display: block;width: 80px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n";
-  ptr +=".button-on {background-color: #3498db;}\n";
-  ptr +=".button-on:active {background-color: #2980b9;}\n";
-  ptr +=".button-off {background-color: #34495e;}\n";
-  ptr +=".button-off:active {background-color: #2c3e50;}\n";
-  ptr +="p {font-size: 14px;color: #888;margin-bottom: 10px;}\n";
-  ptr +="</style>\n";
-  ptr +="</head>\n";
-  ptr +="<body>\n";
-  ptr +="<h1>ESP32 Web Server</h1>\n";
-  ptr +="<h3>Using Access Point(AP) Mode</h3>\n";  
-}
-
 /**
  * 
- * BLE Section
+ * BLE Callbacks
  * 
 */
-
-#include <Arduino.h>
-#include "NimBLEDevice.h"
-
-uint8_t OFF[] = {0xCC, 0x24, 0x33};
-uint8_t ON[] =  {0XCC, 0x23, 0x33};
-
-// SINGLE COLOR                R     G     B
-uint8_t SOLID_RED[] =   {0x56, 0xFF, 0x00, 0x00, 0x00, 0xF0, 0xAA};
-uint8_t SOLID_GREEN[] = {0x56, 0x00, 0xFF, 0x00, 0x00, 0xF0, 0xAA};
-uint8_t DIM_GREEN[] =   {0x56, 0x00, 0x01, 0x00, 0x00, 0xF0, 0xAA};
-
-// WHITES intensity(high bright)                 INTENSITY
-uint8_t SOLID_WHITE[] = {0x56, 0x00, 0x00, 0x00, 0x7F, 0x0F, 0xAA};
-
-// BUILT IN md(0x25-38), sp (low fast) MODE  SPEED
-uint8_t PURPLE_BUILT_IN[] =     {0xBB, 0x2B, 0x01, 0x44};
-uint8_t DISCO[] =             {0xBB, 0x38, 0x10, 0x44};
-
-// String serverUUID = "a4:c1:38:59:a1:d9";
-static BLEUUID serviceUUID("FFD5");
-static BLEUUID    charUUID("FFD9");
-
-static boolean doConnect = false;
-static boolean connected = false;
-static boolean doScan = false;
-static BLERemoteCharacteristic* pRemoteCharacteristic;
-static BLEAdvertisedDevice* myDevice;
-
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
   uint8_t* pData,

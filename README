@@ -1,1 +1,8 @@
 This is used by ESP32 to control Nilight branded rock controller using HappyLighting IOS app and Triones BLE controller.
+
+Comms via ESP32 Soft AP
+
+https://lastminuteengineers.com/creating-esp32-web-server-arduino-ide/
+
+Other Ideas for comms
+MQTT - then what is the back bone?
