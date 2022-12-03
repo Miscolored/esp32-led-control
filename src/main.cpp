@@ -1,13 +1,89 @@
 /**
- * A BLE client example that is rich in capabilities.
- * There is a lot new capabilities implemented.
- * author unknown
- * updated by chegewara
- * updated for NimBLE by H2zero
+ * BLE connection to Triones device, controlled via SoftAP ESP32
  */
  
-/** NimBLE differences highlighted in comment blocks **/
+/**
+ * 
+ * WIFI Section
+ * 
+*/
 
+#include <WiFi.h>
+#include <WebServer.h>
+
+/* Put your SSID & Password */
+const char* SSID = "ESP32_lucky";  // Enter SSID here
+const char* PASSWORD = "12345678a";  //Enter Password here
+
+/* Put IP Address details */
+IPAddress LOCAL_IP(192,168,1,1);
+IPAddress GATEWAY(192,168,1,1);
+IPAddress SUBNET(255,255,255,0);
+
+WebServer wifiserver(80);
+
+char* ble_mode = "off";
+
+void handle_OnConnect() {
+  Serial.println("handle_OnConnect");
+  wifiserver.send(200, "text/html", SendHTML(ble_mode));
+}
+
+void handle_ble_mode_off() {
+  Serial.println("handle_ble_mode_off");
+  ble_mode = "off";
+  wifiserver.send(200, "text/html", SendHTML(ble_mode));
+  Serial.println("Setting OFF");
+  pRemoteCharacteristic->writeValue(OFF, sizeof(OFF));
+}
+
+void handle_ble_mode_disco() {
+  Serial.println("handle_ble_mode_disco");
+  ble_mode = "disco";
+  wifiserver.send(200, "text/html", SendHTML(ble_mode));
+  Serial.println("Setting DISCO");
+  pRemoteCharacteristic->writeValue(ON, sizeof(ON));
+  pRemoteCharacteristic->writeValue(DISCO, sizeof(DISCO));  
+}
+
+void handle_ble_mode_solid_red() {
+  Serial.println("handle_ble_mode_solid_green");
+  ble_mode = "solid_red";
+  wifiserver.send(200, "text/html", SendHTML(ble_mode));
+  Serial.println("Setting SOLID_RED");
+  pRemoteCharacteristic->writeValue(ON, sizeof(ON));
+  pRemoteCharacteristic->writeValue(SOLID_RED, sizeof(SOLID_RED));
+}
+
+void handle_404() {
+  Serial.println("page not found");
+  wifiserver.send(404, "text/plain", "Not found");
+}
+
+String SendHTML(String ble_mode) {
+  String ptr = "<!DOCTYPE html> <html>\n";
+  ptr +="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
+  ptr +="<title>LED Control</title>\n";
+  ptr +="<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
+  ptr +="body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;} h3 {color: #444444;margin-bottom: 50px;}\n";
+  ptr +=".button {display: block;width: 80px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n";
+  ptr +=".button-on {background-color: #3498db;}\n";
+  ptr +=".button-on:active {background-color: #2980b9;}\n";
+  ptr +=".button-off {background-color: #34495e;}\n";
+  ptr +=".button-off:active {background-color: #2c3e50;}\n";
+  ptr +="p {font-size: 14px;color: #888;margin-bottom: 10px;}\n";
+  ptr +="</style>\n";
+  ptr +="</head>\n";
+  ptr +="<body>\n";
+  ptr +="<h1>ESP32 Web Server</h1>\n";
+  ptr +="<h3>Using Access Point(AP) Mode</h3>\n";  
+}
+
+/**
+ * 
+ * BLE Section
+ * 
+*/
 
 #include <Arduino.h>
 #include "NimBLEDevice.h"
@@ -25,7 +101,7 @@ uint8_t SOLID_WHITE[] = {0x56, 0x00, 0x00, 0x00, 0x7F, 0x0F, 0xAA};
 
 // BUILT IN md(0x25-38), sp (low fast) MODE  SPEED
 uint8_t PURPLE_BUILT_IN[] =     {0xBB, 0x2B, 0x01, 0x44};
-uint8_t RAINBOW[] =             {0xBB, 0x38, 0x10, 0x44};
+uint8_t DISCO[] =             {0xBB, 0x38, 0x10, 0x44};
 
 // String serverUUID = "a4:c1:38:59:a1:d9";
 static BLEUUID serviceUUID("FFD5");
@@ -78,18 +154,18 @@ class MyClientCallback : public BLEClientCallbacks {
 /*******************************************************************/
 };
 
-bool connectToServer() {
+bool connectToBLEServer() {
     Serial.print("Forming a connection to ");
     Serial.println(myDevice->getAddress().toString().c_str());
     
     BLEClient*  pClient  = BLEDevice::createClient();
-    Serial.println(" - Created client");
+    Serial.println(" - Created BLE client");
 
     pClient->setClientCallbacks(new MyClientCallback());
 
     // Connect to the remove BLE Server.
     pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
-    Serial.println(" - Connected to server");
+    Serial.println(" - Connected to BLE server");
 
     // Obtain a reference to the service we are after in the remote BLE server.
     BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
@@ -155,7 +231,30 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 
 void setup() {
+
   Serial.begin(9600);
+
+  /**
+   * 
+   * WIFI
+   * 
+  */
+  WiFi.softAP(SSID, PASSWORD);
+  WiFi.softAPConfig(LOCAL_IP, GATEWAY, SUBNET);
+  delay(100);
+  wifiserver.on("/", handle_OnConnect);
+  wifiserver.on("/solid_red", handle_ble_mode_solid_red);
+  wifiserver.on("/disco", handle_ble_mode_disco);
+  wifiserver.on("/off", handle_ble_mode_off);
+  wifiserver.onNotFound(handle_404);
+  wifiserver.begin();
+  Serial.println("HTTP server started");
+
+  /**
+   * 
+   * BLE
+   * 
+  */
   Serial.println("Starting Arduino BLE Client application...");
   BLEDevice::init("");
 
@@ -174,11 +273,16 @@ void setup() {
 // This is the Arduino main loop function.
 void loop() {
 
+  /**
+   * 
+   * WIFI
+   * 
+  */
   // If the flag "doConnect" is true then we have scanned for and found the desired
   // BLE Server with which we wish to connect.  Now we connect to it.  Once we are 
   // connected we set the connected flag to be true.
   if (doConnect == true) {
-    if (connectToServer()) {
+    if (connectToBLEServer()) {
       Serial.println("We are now connected to the BLE Server.");
     } else {
       Serial.println("We have failed to connect to the server; there is nothin more we will do.");
@@ -186,43 +290,13 @@ void loop() {
     doConnect = false;
   }
 
+
+
   // If we are connected to a peer BLE Server, update the characteristic each time we are reached
   // with the current time since boot.
   if (connected) {
-    Serial.println(millis());
-  
-    switch(millis() % 4) {
-      default:
-      pRemoteCharacteristic->writeValue(ON, sizeof(ON));
-        Serial.println("Setting SOILD RAINBOW");
-        pRemoteCharacteristic->writeValue(RAINBOW, sizeof(RAINBOW));
-        break;
-      case 4:
-        pRemoteCharacteristic->writeValue(ON, sizeof(ON));
-        Serial.println("Setting SOLID_RED");
-        pRemoteCharacteristic->writeValue(SOLID_RED, sizeof(SOLID_RED));
-        break;
-      case 5:
-        pRemoteCharacteristic->writeValue(ON, sizeof(ON));
-        Serial.println("Setting SOLID_WHITE");
-        pRemoteCharacteristic->writeValue(SOLID_WHITE, sizeof(SOLID_WHITE));
-        break;
-      case 1:
-        pRemoteCharacteristic->writeValue(ON, sizeof(ON));
-        Serial.println("Setting DIM_GREEN");
-        pRemoteCharacteristic->writeValue(DIM_GREEN, sizeof(DIM_GREEN));
-        break;
-      case 6:
-        Serial.println("Setting PURPLE_BUILT_IN");
-        pRemoteCharacteristic->writeValue(PURPLE_BUILT_IN, sizeof(PURPLE_BUILT_IN));
-        break;    
-    }
-    String newValue = "Time since boot: " + String(millis()/1000);
-    //Serial.println("Setting new characteristic value to \"" + newValue + "\"");
-    
-    // Set the characteristic's value to be the array of bytes that is actually a string.
-    /*** Note: write / read value now returns true if successful, false otherwise - try again or disconnect ***/
-    //pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length());
+    Serial.println("BLE connected, handling wifi client");
+    wifiserver.handleClient();
   }else if(doScan){
     BLEDevice::getScan()->start(0);  // this is just eample to start scan after disconnect, most likely there is better way to do it in arduino
   }
