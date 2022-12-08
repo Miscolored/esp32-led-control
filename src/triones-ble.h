@@ -1,0 +1,19 @@
+
+uint8_t TRIONES_OFF[] = {0xCC, 0x24, 0x33};
+uint8_t TRIONES_ON[] =  {0XCC, 0x23, 0x33};
+
+// SINGLE COLOR                R     G     B
+uint8_t TRIONES_SOLID_RED[] =   {0x56, 0xFF, 0x00, 0x00, 0x00, 0xF0, 0xAA};
+uint8_t TRIONES_SOLID_GREEN[] = {0x56, 0x00, 0xFF, 0x00, 0x00, 0xF0, 0xAA};
+uint8_t TRIONES_DIM_GREEN[] =   {0x56, 0x00, 0x01, 0x00, 0x00, 0xF0, 0xAA};
+
+// WHITES intensity(high bright)                 INTENSITY
+uint8_t TRIONES_SOLID_WHITE[] = {0x56, 0x00, 0x00, 0x00, 0x7F, 0x0F, 0xAA};
+
+// BUILT IN md(0x25-38), sp (low fast) MODE  SPEED
+uint8_t TRIONES_PURPLE_BUILT_IN[] =     {0xBB, 0x2B, 0x01, 0x44};
+uint8_t TRIONES_DISCO[] =             {0xBB, 0x38, 0x10, 0x44};
+
+// String serverUUID = "a4:c1:38:59:a1:d9";
+static BLEUUID TRIONES_SERVICE_UUID("FFD5");
+static BLEUUID TRIONES_CHAR_UUID("FFD9");

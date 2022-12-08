@@ -8,8 +8,13 @@
  * 
 */
 
+#include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include "NimBLEDevice.h"
+
+#include <sp105-ble.h>
+#include <triones-ble.h>
 
 /* Put your SSID & Password */
 const char* SSID = "ESP32_lucky";  // Enter SSID here
@@ -21,28 +26,6 @@ IPAddress GATEWAY(192,168,1,1);
 IPAddress SUBNET(255,255,255,0);
 
 WebServer wifiserver(80);
-
-#include <Arduino.h>
-#include "NimBLEDevice.h"
-
-uint8_t OFF[] = {0xCC, 0x24, 0x33};
-uint8_t ON[] =  {0XCC, 0x23, 0x33};
-
-// SINGLE COLOR                R     G     B
-uint8_t SOLID_RED[] =   {0x56, 0xFF, 0x00, 0x00, 0x00, 0xF0, 0xAA};
-uint8_t SOLID_GREEN[] = {0x56, 0x00, 0xFF, 0x00, 0x00, 0xF0, 0xAA};
-uint8_t DIM_GREEN[] =   {0x56, 0x00, 0x01, 0x00, 0x00, 0xF0, 0xAA};
-
-// WHITES intensity(high bright)                 INTENSITY
-uint8_t SOLID_WHITE[] = {0x56, 0x00, 0x00, 0x00, 0x7F, 0x0F, 0xAA};
-
-// BUILT IN md(0x25-38), sp (low fast) MODE  SPEED
-uint8_t PURPLE_BUILT_IN[] =     {0xBB, 0x2B, 0x01, 0x44};
-uint8_t DISCO[] =             {0xBB, 0x38, 0x10, 0x44};
-
-// String serverUUID = "a4:c1:38:59:a1:d9";
-static BLEUUID serviceUUID("FFD5");
-static BLEUUID    charUUID("FFD9");
 
 String ble_mode = "off";
 
@@ -103,7 +86,7 @@ void handle_ble_mode_off() {
   ble_mode = "off";
   wifiserver.send(200, "text/html", SendHTML(ble_mode));
   Serial.println("Setting OFF");
-  pRemoteCharacteristic->writeValue(OFF, sizeof(OFF));
+  pRemoteCharacteristic->writeValue(TRIONES_OFF, sizeof(TRIONES_OFF));
 }
 
 void handle_ble_mode_disco() {
@@ -111,8 +94,8 @@ void handle_ble_mode_disco() {
   ble_mode = "disco";
   wifiserver.send(200, "text/html", SendHTML(ble_mode));
   Serial.println("Setting DISCO");
-  pRemoteCharacteristic->writeValue(ON, sizeof(ON));
-  pRemoteCharacteristic->writeValue(DISCO, sizeof(DISCO));  
+  pRemoteCharacteristic->writeValue(TRIONES_ON, sizeof(TRIONES_ON));
+  pRemoteCharacteristic->writeValue(TRIONES_DISCO, sizeof(TRIONES_DISCO));  
 }
 
 void handle_ble_mode_solid_red() {
@@ -120,8 +103,8 @@ void handle_ble_mode_solid_red() {
   ble_mode = "solid_red";
   wifiserver.send(200, "text/html", SendHTML(ble_mode));
   Serial.println("Setting SOLID_RED");
-  pRemoteCharacteristic->writeValue(ON, sizeof(ON));
-  pRemoteCharacteristic->writeValue(SOLID_RED, sizeof(SOLID_RED));
+  pRemoteCharacteristic->writeValue(TRIONES_ON, sizeof(TRIONES_ON));
+  pRemoteCharacteristic->writeValue(TRIONES_SOLID_RED, sizeof(TRIONES_SOLID_RED));
 }
 
 void handle_404() {
@@ -189,10 +172,10 @@ bool connectToBLEServer() {
     Serial.println(" - Connected to BLE server");
 
     // Obtain a reference to the service we are after in the remote BLE server.
-    BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
+    BLERemoteService* pRemoteService = pClient->getService(TRIONES_SERVICE_UUID);
     if (pRemoteService == nullptr) {
       Serial.print("Failed to find our service UUID: ");
-      Serial.println(serviceUUID.toString().c_str());
+      Serial.println(TRIONES_SERVICE_UUID.toString().c_str());
       pClient->disconnect();
       return false;
     }
@@ -200,10 +183,10 @@ bool connectToBLEServer() {
 
 
     // Obtain a reference to the characteristic in the service of the remote BLE server.
-    pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
+    pRemoteCharacteristic = pRemoteService->getCharacteristic(TRIONES_CHAR_UUID);
     if (pRemoteCharacteristic == nullptr) {
       Serial.print("Failed to find our characteristic UUID: ");
-      Serial.println(charUUID.toString().c_str());
+      Serial.println(TRIONES_CHAR_UUID.toString().c_str());
       pClient->disconnect();
       return false;
     }
@@ -239,7 +222,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     Serial.println(advertisedDevice->getServiceUUID(0).toString().c_str());
     Serial.println(advertisedDevice->getServiceUUID(1).toString().c_str());
     // We have found a device, let us now see if it contains the service we are looking for.
-    if (advertisedDevice->haveServiceUUID() && advertisedDevice->isAdvertisingService(serviceUUID)) {
+    if (advertisedDevice->haveServiceUUID() && advertisedDevice->isAdvertisingService(TRIONES_SERVICE_UUID)) {
 
       BLEDevice::getScan()->stop();
       myDevice = advertisedDevice; /** Just save the reference now, no need to copy the object */

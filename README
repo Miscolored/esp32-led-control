@@ -6,3 +6,7 @@ https://lastminuteengineers.com/creating-esp32-web-server-arduino-ide/
 
 Other Ideas for comms
 MQTT - then what is the back bone?
+
+# sp105e-ble
+
+See https://github.com/plaguemorin/SP105E/blob/master/controller_api.py
