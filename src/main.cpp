@@ -9,21 +9,13 @@
 */
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WebServer.h>
 #include "NimBLEDevice.h"
 
+#include <esp32-webserver.h>
 #include <sp105-ble.h>
 #include <triones-ble.h>
 
-/* Put your SSID & Password */
-const char* SSID = "ESP32_lucky";  // Enter SSID here
-const char* PASSWORD = "12345678a";  //Enter Password here
 
-/* Put IP Address details */
-IPAddress LOCAL_IP(192,168,1,1);
-IPAddress GATEWAY(192,168,1,1);
-IPAddress SUBNET(255,255,255,0);
 
 WebServer wifiserver(80);
 
@@ -87,6 +79,7 @@ void handle_ble_mode_off() {
   wifiserver.send(200, "text/html", SendHTML(ble_mode));
   Serial.println("Setting OFF");
   pRemoteCharacteristic->writeValue(TRIONES_OFF, sizeof(TRIONES_OFF));
+
 }
 
 void handle_ble_mode_disco() {
@@ -151,7 +144,6 @@ class MyClientCallback : public BLEClientCallbacks {
     Serial.print("The passkey YES/NO number: ");Serial.println(pass_key);
     return true; 
   }
-
   void onAuthenticationComplete(ble_gap_conn_desc desc){
     Serial.println("Starting BLE work!");
   }
