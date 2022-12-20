@@ -14,7 +14,7 @@
 #include <esp32-webserver.h>
 #include <sp105-ble.h>
 #include <triones-ble.h>
-
+#include <ws2811_brg.h>
 
 
 WebServer wifiserver(80);
@@ -27,12 +27,7 @@ static boolean doScan = false;
 static BLERemoteCharacteristic* pRemoteCharacteristic;
 static BLEAdvertisedDevice* myDevice;
 
-/**
- * 
- * WIFI Handlers
- * 
-*/
-
+#pragma region WiFi Handlers
 String SendHTML(String ble_mode) {
   String ptr = "<!DOCTYPE html> <html>\n";
   ptr +="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
@@ -105,16 +100,11 @@ void handle_404() {
   wifiserver.send(404, "text/plain", "Not found");
 }
 
-/**
- * 
- * BLE Callbacks
- * 
-*/
-static void notifyCallback(
-  BLERemoteCharacteristic* pBLERemoteCharacteristic,
-  uint8_t* pData,
-  size_t length,
-  bool isNotify) {
+#pragma endregion WiFi Handlers
+
+#pragma region BLE Callbacks
+
+static void notifyCallback( BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
     Serial.print("Notify callback for characteristic ");
     Serial.print(pBLERemoteCharacteristic->getUUID().toString().c_str());
     Serial.print(" of data length ");
@@ -225,16 +215,13 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
   } // onResult
 }; // MyAdvertisedDeviceCallbacks
 
+#pragma endregion BLE Callbacks
 
 void setup() {
 
   Serial.begin(9600);
 
-  /**
-   * 
-   * WIFI
-   * 
-  */
+  #pragma region WiFi setup
   WiFi.softAP(SSID, PASSWORD);
   WiFi.softAPConfig(LOCAL_IP, GATEWAY, SUBNET);
   delay(100);
@@ -245,12 +232,9 @@ void setup() {
   wifiserver.onNotFound(handle_404);
   wifiserver.begin();
   Serial.println("HTTP server started");
+  #pragma endregion WiFi setup
 
-  /**
-   * 
-   * BLE
-   * 
-  */
+  #pragma region BLE setup
   Serial.println("Starting Arduino BLE Client application...");
   BLEDevice::init("");
 
@@ -263,6 +247,7 @@ void setup() {
   pBLEScan->setWindow(449);
   pBLEScan->setActiveScan(true);
   pBLEScan->start(5, false);
+  #pragma endregion BLE setup
 } // End of setup.
 
 
@@ -285,6 +270,7 @@ void loop() {
     }
     doConnect = false;
   }
+
 
 
 
